@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,14 +10,37 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/phaseharry/learn-go/internal/database"
 )
+
+type apiConfig struct {
+	DB *database.Queries
+}
 
 func main() {
 	godotenv.Load() // loads env variables from .env file
 
 	// getting "PORT" env variable
 	port := os.Getenv("PORT")
-	fmt.Println("port: " + port)
+	if port == "" {
+		log.Fatal("PORT is not found in the environment!")
+	}
+	dbUrl := os.Getenv("DB_URL")
+	if dbUrl == "" {
+		log.Fatal("DB_URL is not found in the environment!")
+	}
+	fmt.Println("port: " + port + "\ndbURL: " + dbUrl)
+
+	// Go standard library has built in SQL package
+	dbConnection, dbConnectionErr := sql.Open("postgres", dbUrl)
+	if dbConnectionErr != nil {
+		log.Fatal("DB_URL is not found in the environment!")
+	}
+
+	apiCfg := apiConfig{
+		DB: database.New(dbConnection),
+	}
 
 	router := chi.NewRouter()
 
@@ -35,6 +59,7 @@ func main() {
 	v1Router := chi.NewRouter()
 	v1Router.Get("/health", handlerReadiness)
 	v1Router.Get("/error", handlerError)
+	v1Router.Post("/users", apiCfg.handlerCreateUser)
 
 	router.Mount("/v1", v1Router)
 
@@ -48,9 +73,9 @@ func main() {
 		blocks and starts handling HTTP requests. If there's any error
 		then it will be unblocked and return that error
 	*/
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+	serverError := server.ListenAndServe()
+	if serverError != nil {
+		log.Fatal(serverError)
 	}
 }
 

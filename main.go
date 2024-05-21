@@ -30,6 +30,14 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	// creating a secondary router for "/ready" path and mounting it to the
+	// main router's "/v1" path
+	v1Router := chi.NewRouter()
+	v1Router.Get("/health", handlerReadiness)
+	v1Router.Get("/error", handlerError)
+
+	router.Mount("/v1", v1Router)
+
 	server := &http.Server{
 		Handler: router,
 		Addr:    ":" + port,
